@@ -38,7 +38,6 @@ func GetDB() *sql.DB {
 }
 
 func SaveLog(l *entity.IP) error {
-	fmt.Println(l)
 	// Insert data to table log
 
 	query := sq.Insert("log").Columns("ip", "status_code", "x_amzn_trace_id").Values(l.Origin, l.StatusCode, l.Headers.XAmznTraceID)

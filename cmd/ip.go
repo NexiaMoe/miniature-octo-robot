@@ -7,7 +7,12 @@ import (
 	"fmt"
 	"helloion/filter"
 	"helloion/function"
+	"os"
+	"os/signal"
+	"strconv"
+	"time"
 
+	"github.com/go-co-op/gocron"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +29,61 @@ var ipCmd = &cobra.Command{
 			f.Json = true
 		}
 
+		// Check if periodically flag is true, if true then it will run in daemon mode
+
+		if cmd.Flag("periodically").Value.String() == "true" {
+			s := gocron.NewScheduler(time.UTC)
+			second, err := strconv.Atoi(cmd.Flag("Second").Value.String())
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			// Schedule a job for every 5 seconds.
+			s.Every(second).Seconds().Do(function.GetIP, f)
+
+			s.StartAsync()
+
+			// We need to add context background here to prevent exit from function until we press ctrl+c or program exit
+
+			c := make(chan os.Signal, 1)
+
+			signal.Notify(c, os.Interrupt)
+
+			is_shutdown := false
+			is_running := false
+
+		OUTTER:
+			for {
+				if is_shutdown {
+					break
+				}
+
+				select {
+				case s, ok := <-c:
+					if ok {
+						fmt.Println("Got signal:", s)
+						is_shutdown = true
+
+						c = nil
+
+						continue OUTTER
+					}
+				default:
+					if !is_running {
+						fmt.Println("IP Daemon Running")
+						is_running = true
+					}
+
+				}
+			}
+
+			fmt.Println("IP Daemon Stopped")
+
+			os.Exit(0)
+
+		}
+
 		statusCode, res, err := function.GetIP(f)
 		if err != nil || statusCode != 200 {
 			fmt.Println(err)
@@ -35,14 +95,22 @@ var ipCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.AddCommand(ipCmd)
+
 	f := new(filter.CLIFilter)
 
-	rootCmd.PersistentFlags().BoolVarP(&f.Json, "json", "j", false, "Print JSON format")
+	ipCmd.Flags().BoolVarP(&f.Json, "json", "j", false, "Print JSON format")
+
+	ipCmd.Flags().BoolVarP(&f.Periodically, "periodically", "p", false, "Get IP address periodically")
+
+	ipCmd.Flags().IntVarP(&f.Second, "Second", "s", 5, "Get IP address periodically")
 
 	// rootCmd.Flags().BoolVarP(&f.Json, "json", "j", false, "Print JSON format")
-	rootCmd.Flag("json")
+	// rootCmd.Flag("json")
+	// rootCmd.Flag("periodically")
+	// rootCmd.Flag("Second")
 
-	rootCmd.AddCommand(ipCmd)
+	// rootCmd.HasLocalFlags()
 
 	// Here you will define your flags and configuration settings.
 

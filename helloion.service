@@ -1,0 +1,11 @@
+[Unit]
+Description=Hello Ion Service
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/d/Project/helloion
+ExecStart=/mnt/d/Project/helloion/helloion --config /mnt/d/Project/helloion ip -p -s 5
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
